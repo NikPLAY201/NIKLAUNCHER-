@@ -1,0 +1,188 @@
+data class VersionManifest(
+    val id: String,
+    val name: String,
+    val clientUrl: String?,
+    val libraries: List<Library>,
+    val mainClass: String
+)
+
+data class Library(val name: String, val url: String)
+
+class LauncherCore(private val context: Context) {
+
+    fun getAvailableVersions(): List<VersionManifest> {
+        // читаем из assets/versions/*.json или с сервера
+        return listOf(
+            VersionManifest("1.20.1", "1.20.1 (Fabric)", null, emptyList(), "net.fabricmc.loader.launch.FabricLauncher"),
+            VersionManifest("1.2.3_03_mystic", "1.2.3_03 (Mystic)", null, emptyList(), "net.minecraft.client.Minecraft")
+        )
+    }
+
+    fun launchVersion(version: VersionManifest, account: Account) {
+        if (!account.isLicensed && version.id != "trial") {
+            showMessage("Требуется лицензия. Запуск в режиме Trial.")
+            // здесь можно выбрать trial-версию вместо этой
+            return
+        }
+        val javaArgs = buildJavaArgs(version, account)
+        val command = buildLaunchCommand(javaArgs)
+        Runtime.getRuntime().exec(command)
+    }
+
+    private fun buildJavaArgs(version: VersionManifest, account: Account): List<String> {
+        val args = mutableListOf<String>()
+        args.add("-Xmx2G") // пример выделения памяти
+        args.add("-cp")
+        args.add(buildClasspath(version))
+        args.add(version.mainClass)
+        // добавить аргументы аккаунта, UUID, имя игрока и т.д.
+        return args
+    }
+
+    private fun buildClasspath(version: VersionManifest): String {
+        // собрать путь ко всем JAR-библиотекам и клиенту
+        return ""
+    }
+
+    private fun buildLaunchCommand(args: List<String>): String {
+        // в Android это будет Intent или запуск через Runtime.exec с нативным Java
+        return "java ${args.joinToString(" ")}"
+    }
+}
+[
+  {
+    "id": "verity_je",
+    "name": "Verity JE",
+    "file": "verity_je-1.20.1.jar",
+    "enabled": true
+  },
+  {
+    "id": "geckolib",
+    "name": "GeckoLib",
+    "file": "geckolib-forge-1.20.1.jar",
+    "enabled": false
+  }
+]
+{
+  "id": "1.2.3_03_mystic",
+  "time": "2024-01-01T00:00:00+00:00",
+  "releaseTime": "2024-01-01T00:00:00+00:00",
+  "type": "custom",
+  "mainClass": "net.minecraft.client.Minecraft",
+  "minimumLauncherVersion": 18,
+  "assets": "1.12",
+  "libraries": [
+    {"name": "com.mojang:authlib:1.5.25"},
+    {"name": "org.apache.logging.log4j:log4j-api:2.17.1"},
+    {"name": "org.apache.logging.log4j:log4j-core:2.17.1"}
+  ],
+  "minecraftArguments": "--username ${auth_player_name} --version ${version_name} --gameDir ${game_directory} --assetsDir ${assets_root} --assetIndex ${asset_index} --uuid ${auth_uuid} --accessToken ${auth_access_token} --userType ${user_type}",
+  "javaArguments": "-Xmx2G -Xms512M"
+}
+<string name="app_name">NIKLAUNCHER</string>
+<launcher_dir>/versions/1.2.3_03_mystic/
+├── 1.2.3_03_mystic.jar        # или minecraft.jar
+├── libraries/                  # все зависимости
+├── assets/                     # текстуры, звуки
+├── mods/                       # моды для Херобрина и т.п.
+└── 1.2.3_03_mystic.json        # манифест
+VersionManifest("1.2.3_03_mystic", "1.2.3_03 (Mystic)", null, listOf(...), "net.minecraft.client.Minecraft")
+fun prepareModsForVersion(versionId: String, loaderType: LoaderType, modsDir: File) {
+    val modsToInstall = when (loaderType) {
+        LoaderType.FABRIC -> listOf(
+            "sodium-fabric-1.20.1.jar",
+            "iris-fabric-1.20.1.jar"
+        )
+        LoaderType.FORGE -> listOf(
+            "magnesium-forge-1.20.1.jar",
+            "oculus-forge-1.20.1.jar"
+        )
+        else -> emptyList()
+    }
+
+    modsToInstall.forEach { modFileName ->
+        val src = getModFromAssets(modFileName) // из assets лаунчера
+        val dst = File(modsDir, modFileName)
+        src.copyTo(dst, overwrite = true)
+    }
+}
+@Composable
+fun ModsScreen(viewModel: ModsViewModel) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(text = "Mods for ${viewModel.selectedVersion}", style = MaterialTheme.typography.headlineMedium)
+        
+        LazyColumn {
+            items(viewModel.mods) { mod ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(text = mod.name, style = MaterialTheme.typography.titleMedium)
+                        Text(text = mod.filename, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                    }
+                    Switch(checked = mod.isEnabled, onCheckedChange = { viewModel.toggleMod(mod) })
+                }
+            }
+        }
+
+        Button(onClick = { /* открыть файловый менеджер */ }) {
+            Text("Add mod")
+        }
+    }
+}
+╔══════════════════════════════════════════════════════════════╗
+║  NIKLAUNCHER — ACCOUNTS                                     ║
+╠══════════════════════════════════════════════════════════════╣
+║  ● Microsoft (Primary)                                       ║
+║     Login: user@outlook.com                                  ║
+║     Status: [🟢 Licensed]   [Switch]                         ║
+║                                                             ║
+║  ○ Microsoft (Alt)                                           ║
+║     Login: alt@outlook.com                                   ║
+║     Status: [🟠 Trial only]   [Switch]                       ║
+║                                                             ║
+║  ★ Local Account                                             ║
+║     Name: PlayerOne                                         ║
+║     Type: [🟣 Local]                                        ║
+║     Skin: [Preview: Steve]   [Change]                       ║
+║     [Switch]                                                 ║
+║                                                             ║
+║   [Add Microsoft]   [Create Local]                          ║
+╚══════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════╗
+║  NIKLAUNCHER — LOCAL ACCOUNT SETTINGS                       ║
+╠══════════════════════════════════════════════════════════════╣
+║  Name: [ PlayerOne ]  [Edit]                                ║
+║                                                             ║
+║   ╔═══════════════════════════════════════════════╗         ║
+║   ║  Current Skin                               ║         ║
+║   ║  [🧍 Steve (default)]                       ║         ║
+║   ╚═══════════════════════════════════════════════╝         ║
+║                                                             ║
+║   [Choose from gallery]                                     ║
+║   [Pick file from storage]                                  ║
+║   [Reset to default]                                       ║
+║                                                             ║
+║   Notes:                                                    ║
+║   - Skin применяется только для этого аккаунта.             ║
+║   - Формат: PNG 64×64 или 128×128.                          ║
+║   - В мультиплеере сервер может заменить скин.              ║
+╚══════════════════════════════════════════════════════════════╝
+data class Account(
+    val id: String,
+    val name: String,          // имя игрока (username)
+    val type: AccountType,    // Microsoft / Local
+    val isLicensed: Boolean,   // только для Microsoft
+    var skinPath: String?      // путь к локальному скину
+)
+
+enum class AccountType { Microsoft, Local }
+fun pickSkinFromStorage(launcherDir: File, account: Account) {
+    // тут вызывается Intent для выбора файла из галереи/хранилища
+    // после выбора:
+    val dest = File(launcherDir, "profiles/${account.id}/skin.png")
+    sourceFile.copyTo(dest, overwrite = true)
+    account.skinPath = dest.absolutePath
+}
